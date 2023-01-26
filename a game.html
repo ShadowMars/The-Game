@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title> a game</title>
+<style>
+canvas {
+    border:1px solid #d3d3d3;
+    background-color: #525A5D ;
+}
+.myDiv {
+	border: 5px outset grey;
+	background-color: #525A5D;
+	text-align: center;
+}
+</style>
+</head>
+<body onload="startGame()">
+<script>
+
+var myGamePiece, crossheir; 
+var myObstacles = [];
+var projectile = [];
+var speed = [];
+var myDifficulty
+var health
+var healthBar
+var ammo
+var ammoDrops = [];
+
+function startGame() {
+	myGamePiece = new component(10, 10, "#EE4E4E", 675, 372);
+	crossheir = new component(5, 5, "black", 50, 50);
+	myDifficulty = new component("30px", "Arial", "#D3D3D3", 10, 75, "text");
+	boss = new otherComponent(1, 1, "#5A974C", 1600, 800,);
+	health = new healthComponent (400, 30, "red", 10, 10, "hp");
+	healthBar = new healthComponent(400, 30, "#AD7272", 10, 10,"hp");
+	menuBack = new healthComponent( 1350, 745, "rgba(90, 90, 90, 0.5)", 0, 0);
+	menu = new healthComponent(675, 372, "#D3D3D3", 337, 186);
+	ammo = new component("12px", "Arial", "#D3D3D3", 1290, 30, "text");
+	pool = new poolComponent(50, 50, "green", 675, 372)
+	time = new component("30px", "Arial", "#D3D3D3", 1290, 30, "text");
+	myGameArea.start();
+}
+
+var myGameArea = {
+	canvas : document.createElement("canvas"),
+	start : function() {
+		this.canvas.width = 1350;
+		this.canvas.height = 750;
+		this.canvas.style.cursor = "none"; //hide cursor
+		this.context = this.canvas.getContext("2d");
+		document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+		this.frameNo = 0; 
+		this.interval = setInterval(updateGameArea, 20);
+		window.addEventListener('keydown',function (e) { //Keyboard controls
+			myGameArea.keys = (myGameArea.keys || []);
+			myGameArea.keys[e.keyCode] = true;
+		})
+		window.addEventListener('keyup',function (e) {
+			myGameArea.keys[e.keyCode] = false;
+		})
+		window.addEventListener('mousemove', function (e) { //Mouse controls
+			myGameArea.x = e.pageX;
+			myGameArea.y = e.pageY;
+		})
+		window.addEventListener('mousedown', (event) => {
+			this.mousedown = true
+		})
+		window.addEventListener('mouseup', (event) => {
+			this.mousedown = false
+		})
+	},
+	clear : function() {
+		this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+	},
+	stop : function() {
+		clearInterval(this.interval);
+	}
+}
+
+
+
+function component(width, height, color, x, y, type) {
+	this.type = type;
+	this.width = width;
+	this.height = height;
+	this.angle = 0;
+	this.speed = 0;
+	this.speedX = 0;
+	this.speedY = 0;
+	this.x = x;
+	this.y = y;
+	this.update = function(){
+	ctx = myGameArea.context;
+	if (this.type == "text") {
+		ctx.font = this.width + " " + this.height;
+    	ctx.fillStyle = color;
+    	ctx.fillText(this.text, this.x, this.y);
+	} else {
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.fillStyle = color;
+		ctx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+		ctx.restore();
+		}
+	}
+	this.newPos = function() {
+		this.x += this.speedX;
+		if (this.x < 5) { this.x = 5; }
+		if (this.x > 1345) {this.x = 1345; }
+		this.y += this.speedY
+		if (this.y < 5) {this.y = 5; }
+		if (this.y > 745) {this.y = 745; }
+	}
+	this.newAngPos = function() {
+		this.x += this.speed * Math.sin(this.angle);
+		if ((this.x < 5) || (this.x > 1345)) { this.x -= this.speed * Math.sin(this.angle);}
+		this.y -= this.speed * Math.cos(this.angle);
+		if ((this.y < 5) || (this.y > 740)) {this.y +- this.speed * Math.cos(this.angle);}
+	}
+	this.crashWith = function(otherobj) {
+		var myleft = this.x - (this.width / 2);
+		var myright = this.x + (this.width / 2);
+		var mytop = this.y - (this.height / 2);
+		var mybottom = this.y + (this.height / 2);
+		var otherleft = otherobj.x - (otherobj.width / 2);
+		var otherright = otherobj.x + (otherobj.width / 2);
+		var othertop = otherobj.y - (otherobj.height / 2);
+		var otherbottom = otherobj.y + (otherobj.height / 2);
+		var crash = true;
+		if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+			crash = false;
+		}
+		return crash;
+	}
+}
+
+function poolComponent(width, height, color, x, y, type) {
+	this.type = type;
+	this.width = width;
+	this.height = height;
+	this.angle = 0;
+	this.speed = 0;
+	this.speedX = 0;
+	this.speedY = 0;
+	this.x = x;
+	this.y = y;
+	this.update = function(){
+	ctx = myGameArea.context;
+	if (this.type == "text") {
+		ctx.font = this.width + " " + this.height;
+    	ctx.fillStyle = color;
+    	ctx.fillText(this.text, this.x, this.y);
+	} else {
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.fillStyle = color;
+		ctx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+		ctx.restore();
+		}
+	}
+	this.newPos = function() {
+		this.x += this.speedX;
+		this.y += this.speedY;
+	}
+	this.newAngPos = function() {
+		this.x += this.speed * Math.sin(this.angle);
+		this.y -= this.speed * Math.cos(this.angle);
+	}
+	this.crashWith = function(otherobj) {
+		var myleft = this.x - (this.width / 2);
+		var myright = this.x + (this.width / 2);
+		var mytop = this.y - (this.height / 2);
+		var mybottom = this.y + (this.height / 2);
+		var otherleft = otherobj.x - (otherobj.width / 2);
+		var otherright = otherobj.x + (otherobj.width / 2);
+		var othertop = otherobj.y - (otherobj.height / 2);
+		var otherbottom = otherobj.y + (otherobj.height / 2);
+		var crash = true;
+		if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+			crash = false;
+		}
+		return crash;
+	}
+}
+
+function healthComponent(width, height, color, x, y, type) {
+	this.width = width;
+	this.height = height;
+	this.speedX = 0;
+	this.speedY = 0;
+	this.x = x;
+	this.y = y;
+	this.update = function(){
+	ctx = myGameArea.context;
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		ctx.fillStyle = color;
+		ctx.fillRect(this.width / -200, this.height / -200, this.width, this.height);
+		ctx.restore();
+		}
+	}
+	
+function rotComponent(width, height, color, x, y, angle) {
+	this.width = width;
+	this.height = height;
+	this.angle = angle;
+	this.speed = 0;
+	this.x = x;
+	this.y = y;
+	this.update = function(){
+		myGameArea.context;
+		ctx.save();
+   	ctx.translate(this.x, this.y);
+   	ctx.rotate(this.angle);
+		ctx.fillStyle = color;
+		ctx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+		ctx.restore();
+		}
+		this.newPos = function() {
+			this.x += this.speed * Math.sin(this.angle);
+			this.y -= this.speed * Math.cos(this.angle);
+		}
+		this.crashWith = function(otherobj) {
+		var myleft = this.x - (this.width / 2);
+		var myright = this.x + (this.width / 2);
+		var mytop = this.y - (this.height / 2);
+		var mybottom = this.y + (this.height / 2);
+		var otherleft = otherobj.x - (otherobj.width / 2);
+		var otherright = otherobj.x + (otherobj.width / 2);
+		var othertop = otherobj.y - (otherobj.height / 2);
+		var otherbottom = otherobj.y + (otherobj.height / 2);
+		var intercept = true;
+		if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+			intercept = false;
+		}
+		return intercept;
+	}
+}
+
+function otherComponent(width, height, color, x, y, angle) { //Create rotating component with broken collision
+	this.width = width;
+	this.height = height;
+	this.angle = angle;
+	this.speed = 0;
+	this.x = x;
+	this.y = y;
+	this.update = function(){
+		myGameArea.context;
+		ctx.save();
+		ctx.translate(this.x, this.y);
+		//ctx.rotate(this.angle);
+		ctx.fillStyle = color;
+		ctx.fillRect(this.width / -2, this.height / -2, this.width, this.height);
+		ctx.restore();
+		}
+		this.newPos = function() {
+			this.x += this.speed * Math.sin(this.angle);
+			this.y -= this.speed * Math.cos(this.angle);
+		}
+}
+
+//game updates everything important
+let pSpeed = 4;
+let oSpeed = 3;
+let difficulty = 30;
+let dif = 20;
+let kills = 0;
+let hp = 50
+let ammoCount = 100;
+let ammoY = [];
+let nextAmmoSpawn = ((Math.floor(Math.random()*250)) + 250);
+let pause = false
+let escPress = false
+let time2 = 0;
+
+function updateGameArea() {//where the pain starts
+	if (pause == true) { //Pause shenanagins
+			
+		if ((myGameArea.keys && myGameArea.keys[32]) == false) {escPress = false; }
+		
+		if ((myGameArea.keys && myGameArea.keys[32]) && (escPress == false)) {
+			pause = false; 
+			escPress = true;
+			myGameArea.canvas.style.cursor = "none";
+		}
+		
+		//menu = new component
+	}
+	
+	if (pause == false) {
+		if ((myGameArea.keys && myGameArea.keys[32]) && (escPress == false)) {
+			pause = true;
+			escPress = true;
+			myGameArea.canvas.style.cursor = "default";
+		}
+		if ((myGameArea.keys && myGameArea.keys[32]) == false) {escPress = false; }
+		
+		// difficulty increase
+	var x, y;
+	if (dif > 10) {
+	if ((myGameArea.frameNo % 50) == 0) {
+		difficulty -= 1;
+		dif -= 1
+		}
+	}
+	
+	if (dif > 3) {
+		if ((myGameArea.frameNo % 100) == 0) {
+			dif -= .25;
+		}
+	}
+	
+	if (difficulty <= 5) {difficulty = 5; }
+	
+	
+	for (i = 0; i < projectile.length; i += 1) { //destruction
+		for (j = 0; j < myObstacles.length; j += 1) {
+			if (projectile[i].x == projectile[i].x) {
+				if (projectile[i].crashWith(myObstacles[j])) {
+					projectile.splice(i, 1);
+					myObstacles.splice(j, 1);
+					speed.splice(j, 1)
+					kills += 1;
+				}
+			}
+		}
+	}
+	//player health
+	for (i = 0; i < myObstacles.length; i += 1) {
+		if (myGamePiece.crashWith(myObstacles[i])) {
+			health.width -= 8;
+			hp -= 1;
+		}
+	}
+	if (pool.crashWith(myGamePiece)) {
+		if ((myGameArea.frameNo % 1) == 0) {
+			hp += .2;
+			health.width += 1.6;
+		}
+	}
+	if (hp >= 50) {hp = 50}
+	if (health.width >= 400) {health.width = 400}
+	
+	
+	
+	if (hp <= 0) {myGameArea.stop();}
+	
+	for (i = 0; i < projectile.length; i += 1) {
+		if ((projectile[i].x > 1350) || (projectile[i].x < 0) || (projectile[i].y < 0) || (projectile[i].y > 745)) {
+			projectile.splice(i, 1);
+		}
+	}
+	
+	myGameArea.clear();
+	myGameArea.frameNo += 1;
+	
+	myGamePiece.speedX = 0; 
+	myGamePiece.speedY = 0;
+	if (myGameArea.keys && myGameArea.keys[65]) {myGamePiece.speedX = -pSpeed; }
+	if (myGameArea.keys && myGameArea.keys[68]) {myGamePiece.speedX = pSpeed; }
+	if (myGameArea.keys && myGameArea.keys[87]) {myGamePiece.speedY = -pSpeed; }
+	if (myGameArea.keys && myGameArea.keys[83]) {myGamePiece.speedY = pSpeed; }
+	myGamePiece.newPos();
+	
+	if (myGameArea.x && myGameArea.y) { //crossheir mouse controls
+		crossheir.x = myGameArea.x;
+		crossheir.y = myGameArea.y;
+	}
+	
+	pool.update();
+	
+	if ((myGameArea.frameNo % difficulty) == 0) { //Spawn enemies
+		var obSpawn = Math.floor(Math.random()*20);
+		if (obSpawn <= 5) {
+			x = Math.floor(Math.random()*1350);
+        	y = 745;
+			}
+		if ((obSpawn > 5) && (obSpawn <= 10)) {
+			x = Math.floor(Math.random()*1350);
+        	y = 0;
+			}
+		if ((obSpawn > 10) && (obSpawn <= 15)) {
+			x = 1350;
+        	y = Math.floor(Math.random()*745);
+			}
+		if (obSpawn > 15) {
+			x = 0;
+        	y = Math.floor(Math.random()*745);
+			}
+        myObstacles.push(new otherComponent(20, 20, "#5A974C", x, y,));
+		speed.push(Math.floor(Math.random()*4))
+		}
+	
+	for (i = 0; i < myObstacles.length; i += 1) {//Enemy angle and movement
+		if (myObstacles[i].x == myObstacles[i].x) {
+			let proY = (myObstacles[i].y - myGamePiece.y);
+			let proX = (myObstacles[i].x - myGamePiece.x);
+			if ((proX > 0) && (proY < 0)) {myObstacles[i].angle = (-Math.atan(proX / proY)); } //Q1
+			if ((proX < 0) && (proY < 0)) {myObstacles[i].angle = (-Math.atan(proX / proY)); } //Q2
+			if ((proX < 0) && (proY > 0)) {myObstacles[i].angle = ((Math.atan(proY / proX)) - (Math.PI / 2)); } //Q3
+			if ((proX > 0) && (proY > 0)) {myObstacles[i].angle = ((Math.atan(proY / proX)) + (Math.PI / 2)); } //Q4
+			
+			myObstacles[i].speed = ((speed[i]*- 4) - 1) / dif; 
+			myObstacles[i].newPos();
+			myObstacles[i].update();
+		}
+	}	
+	
+	//boss.x = 1600;
+	//boss.y = 800;
+	
+	//if ((myGameArea.frameNo % 10000) == 0) {
+		//boss.x = 675;
+		//boss.y = 325;
+	//}
+	
+			//if (boss.x = 675) {
+				//if (boss.width < 100) {  
+					//if ((myGameArea.frameNo % 2) == 0) {
+						//boss.width += 1;
+						//boss.height += 1;
+					//}
+				//}
+			//}
+	//boss.update();
+	
+	let bossY = (myGamePiece.y - boss.y);
+	let bossX = (myGamePiece.x - boss.x);
+	if ((bossX > 0) && (bossY < 0)) {boss.angle = (-Math.atan(bossX / bossY)); } //Q1
+	if ((bossX < 0) && (bossY < 0)) {boss.angle = (-Math.atan(bossX / bossY)); } //Q2
+	if ((bossX < 0) && (bossY > 0)) {boss.angle = ((Math.atan(bossY / bossX)) - (Math.PI / 2)); } //Q3
+	if ((bossX > 0) && (bossY > 0)) {boss.angle = ((Math.atan(bossY / bossX)) + (Math.PI / 2)); } //Q4
+	boss.speed = 1;
+	boss.newPos(); 
+	boss.update();
+	
+	
+	if (myGameArea.mousedown == true) { 
+		if (ammoCount > 0) {//projectile stuff
+			if ((myGameArea.frameNo % 3) == 0) {
+			let proY = (crossheir.y - myGamePiece.y);
+			let proX = (crossheir.x - myGamePiece.x);
+			if ((proX > 0) && (proY < 0)) {
+			projectile.push(new rotComponent(5, 5, "black", myGamePiece.x, myGamePiece.y, -Math.atan(proX / proY))); 
+			myGamePiece.angle = ((Math.atan(proY / proX)) - (Math.PI / 2));
+			} //Q1
+			if ((proX < 0) && (proY < 0)) {
+			projectile.push(new rotComponent(5, 5, "black", myGamePiece.x, myGamePiece.y, -Math.atan(proX / proY)));  
+			myGamePiece.angle = ((Math.atan(proY / proX)) + (Math.PI / 2));
+			} //Q2
+			if ((proX < 0) && (proY > 0)) {
+			projectile.push(new rotComponent(5, 5, "black", myGamePiece.x, myGamePiece.y,((Math.atan(proY / proX)) - (Math.PI / 2)))); 
+			myGamePiece.angle = -Math.atan(proX / proY);
+			} //Q3
+			if ((proX > 0) && (proY > 0)) {
+			projectile.push(new rotComponent(5, 5, "black", myGamePiece.x, myGamePiece.y, ((Math.atan(proY / proX)) + (Math.PI / 2))));
+			myGamePiece.angle = -Math.atan(proX / proY);
+			} //Q4
+			ammoCount -= 1;
+			}
+		}
+	}
+	
+	if (myGameArea.mousedown == true) {
+		if ((myGameArea.frameNo % 15) == 0) {
+			myGamePiece.speed += 1;
+		}
+	}
+	if (myGamePiece.speed >= 3) {myGamePiece.speed = 3;}//player recoil
+	
+	if (myGameArea.mousedown == false) { //player recoil
+		if ((myGameArea.frameNo % 10) == 0) {
+			myGamePiece.speed -= 1;
+		}
+	}
+	if (myGamePiece.speed <= 0) { myGamePiece.speed = 0;}
+ 	myGamePiece.newAngPos();
+ 
+	
+	for (i = 0; i < projectile.length; i += 1) {
+		if (projectile[i].x == projectile[i].x) {
+			projectile[i].speed = 10;
+			projectile[i].newPos();
+			projectile[i].update();
+		}
+	}
+	
+	
+	if (nextAmmoSpawn < 1) { //Spawn ammo drops
+		ammoDrops.push(new component(15, 15, "orange", Math.floor(Math.random()*1350), Math.floor(Math.random()*745)));
+		ammoY.push((Math.floor(Math.random()*725)) + 10);
+		nextAmmoSpawn = ((Math.floor(Math.random()*250)) + 250);
+	} else {
+		nextAmmoSpawn -= 1;
+	}
+	
+	for (i = 0; i < ammoDrops.length; i += 1) { //Ammo drops move
+		if (ammoDrops[i].x == ammoDrops[i].x) {
+			if (ammoDrops[i].y < ammoY[i]) {
+				ammoDrops[i].y += 1;
+			}
+		
+			if (myGamePiece.crashWith(ammoDrops[i])) {
+				ammoCount += 75;
+				ammoDrops.splice(i, 1);
+				ammoY.splice(i, 1)
+			}
+		}
+	}
+	
+	for (i = 0; i < ammoDrops.length; i += 1) { //Ammo drops update
+		if (ammoDrops[i].x == ammoDrops[i].x) {
+			ammoDrops[i].update();
+		}
+	}
+	
+	if ((myGameArea.frameNo % 50) == 0) {
+		time2 += 1;
+	}
+	
+ ammo.x = myGamePiece.x + 10;
+ ammo.y = myGamePiece.y;
+ 
+ 	time.text = time2;
+	ammo.text = ammoCount;
+	myDifficulty.text = kills;
+	time.update();
+	healthBar.update();
+	health.update();
+	ammo.update();
+	myDifficulty.update();
+	myGamePiece.update();
+	crossheir.update();
+	
+		
+		
+	}
+	
+	if (pause == true) {
+		menuBack.update();
+		for (i = 0; i < myObstacles.length; i += 1) { //Ammo drops update
+		if (myObstacles[i].x == myObstacles[i].x) {
+			myObstacles[i].update();
+		}
+	}
+	for (i = 0; i < ammoDrops.length; i += 1) { //Ammo drops update
+		if (ammoDrops[i].x == ammoDrops[i].x) {
+			ammoDrops[i].update();
+		}
+	}
+		ammo.text = ammoCount;
+		myDifficulty.text = kills;
+		healthBar.update();
+		health.update();
+		ammo.update();
+		myDifficulty.update();
+		myGamePiece.update();
+		crossheir.update();
+		menu.update();
+		time.update();
+		
+		
+			
+			
+	}
+}
+
+
+	
+//printIn('hello world');
+ 
+
+
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+</html>
