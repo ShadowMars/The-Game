@@ -23,10 +23,14 @@ var myObstacles = [];
 var projectile = [];
 var speed = [];
 var myDifficulty
+var hp = 50;
 var health
 var healthBar
 var ammo
 var ammoDrops = [];
+var nextPool
+var canvasX = 1350;
+var canvasY = 745;
 
 function startGame() {
 	myGamePiece = new component(10, 10, "#EE4E4E", 675, 372);
@@ -40,6 +44,7 @@ function startGame() {
 	ammo = new component("12px", "Arial", "#D3D3D3", 1290, 30, "text");
 	pool = new poolComponent(70, 70, "#24C383", 675, 372)
 	time = new component("30px", "Arial", "#D3D3D3", 1290, 30, "text");
+	nextPool = new poolComponent(60, 60, "rgba(36, 195, 131,0.5)", 675, 372.5)
 	myGameArea.start();
 }
 
@@ -160,10 +165,6 @@ function poolComponent(width, height, color, x, y, type) {
 		ctx.restore();
 		}
 	}
-	this.newPos = function() {
-		this.x += this.speedX;
-		this.y += this.speedY;
-	}
 	this.newAngPos = function() {
 		this.x += this.speed * Math.sin(this.angle);
 		this.y -= this.speed * Math.cos(this.angle);
@@ -283,13 +284,13 @@ function otherComponent(width, height, color, x, y, angle, bsp, dmg, obshp) { //
 	}
 }
 
+
 //game updates everything important
 let pSpeed = 4;
 let oSpeed = 3;
 let difficulty = 30;
 let dif = 20;
 let kills = 0;
-let hp = 50
 let ammoCount = 100;
 let ammoY = [];
 let nextAmmoSpawn = ((Math.floor(Math.random()*250)) + 250);
@@ -297,6 +298,7 @@ let pause = false
 let escPress = false
 let time2 = 0;
 let obType;
+let poolMove = 0;
 
 function updateGameArea() {//where the pain starts
 	if (pause == true) { //Pause shenanagins
@@ -321,6 +323,7 @@ function updateGameArea() {//where the pain starts
 		if ((myGameArea.keys && myGameArea.keys[32]) == false) {escPress = false; }
 		
 		// difficulty increase
+	
 	var x, y;
 	if (dif > 10) {
 	if ((myGameArea.frameNo % 50) == 0) {
@@ -353,34 +356,69 @@ function updateGameArea() {//where the pain starts
 			}
 		}
 		
-	//player health
-	for (i = 0; i < myObstacles.length; i += 1) {
-		if (myGamePiece.crashWith(myObstacles[i])) {
-			health.width -= 8;
-			hp -= 1;
+		
+		
+	for (i = 0; i < myObstacles.length; i += 1) { //Enemy collisions	
+			if (myGamePiece.crashWith(myObstacles[i])) {
+				if (myObstacles[i].coolDown < 1) {
+					hp -= myObstacles[i].dmg;
+					health.width -= myObstacles[i].dmg*4;
+					myObstacles[i].coolDown = 1;
+				}
+				
+				if (myGamePiece.crashWith(myObstacles[i])) {
+					myObstacles[i].speed = 1;
+					myObstacles[i].newPos();
+				}
+				
+				myObstacles[i].speed = -1; //Enemy pushes player
+				myGamePiece.speed = -1;
+				myGamePiece.angle = myObstacles[i].angle;
+				myObstacles[i].newPos();
+				myGamePiece.newAngPos();
+				
+				myObstacles[i].coolDown -= 1;
+				if (myObstacles[i].coolDown < 0) {myObstacles.coolDown = 0; }
+			}
 		}
-	}
+		
+	myGameArea.clear();
+	myGameArea.frameNo += 1;	
+	
+	//player health
 	if (pool.crashWith(myGamePiece)) {
 		if ((myGameArea.frameNo % 1) == 0) {
-			hp += .2;
-			health.width += 1.6;
+			health.width += 2;
 		}
 	}
-	if (hp >= 50) {hp = 50}
-	if (health.width >= 400) {health.width = 400}
+	if (health.width > 400) {health.width = 400}
+	if (health.width < 0) {health.width = 0}
+	if (health.width == 0) {myGameArea.stop();}
 	
-	
-	
-	if (hp <= 0) {myGameArea.stop();}
-	
-	for (i = 0; i < projectile.length; i += 1) {
-		if ((projectile[i].x > 1350) || (projectile[i].x < 0) || (projectile[i].y < 0) || (projectile[i].y > 745)) {
-			projectile.splice(i, 1);
+		if ((myGameArea.frameNo % 750) == 0) { //Move healing square
+			nextPool.x = Math.floor((Math.random()*(canvasX - nextPool.width)) + (nextPool.width / 2));
+			nextPool.y = Math.floor((Math.random()*(canvasY - nextPool.height)) + (nextPool.height / 2));
+			poolMove = 250;
 		}
-	}
-	
-	myGameArea.clear();
-	myGameArea.frameNo += 1;
+		
+		
+		let bossY = (nextPool.y - pool.y);
+		let bossX = (nextPool.x - pool.x);
+		if ((bossX > 0) && (bossY < 0)) {pool.angle = (-Math.atan(bossX / bossY)); } //Q1
+		if ((bossX < 0) && (bossY < 0)) {pool.angle = (-Math.atan(bossX / bossY)); } //Q2
+		if ((bossX < 0) && (bossY > 0)) {pool.angle = ((Math.atan(bossY / bossX)) - (Math.PI / 2)); } //Q3
+		if ((bossX > 0) && (bossY > 0)) {pool.angle = ((Math.atan(bossY / bossX)) + (Math.PI / 2)); } //Q4
+		
+		
+		if (nextPool.x == pool.x) {
+			pool.speed = 0;
+			} else {
+			pool.speed = 1;
+		}
+		
+		pool.newAngPos();
+		pool.update();
+		nextPool.update();
 	
 	myGamePiece.speedX = 0; 
 	myGamePiece.speedY = 0;
@@ -395,7 +433,7 @@ function updateGameArea() {//where the pain starts
 		crossheir.y = myGameArea.y;
 	}
 	
-	pool.update();
+	
 	
 	if ((myGameArea.frameNo % difficulty) == 0) { //Spawn enemies
 		var obSpawn = Math.floor(Math.random()*20);
@@ -459,15 +497,7 @@ function updateGameArea() {//where the pain starts
 			//}
 	//boss.update();
 	
-	let bossY = (myGamePiece.y - boss.y);
-	let bossX = (myGamePiece.x - boss.x);
-	if ((bossX > 0) && (bossY < 0)) {boss.angle = (-Math.atan(bossX / bossY)); } //Q1
-	if ((bossX < 0) && (bossY < 0)) {boss.angle = (-Math.atan(bossX / bossY)); } //Q2
-	if ((bossX < 0) && (bossY > 0)) {boss.angle = ((Math.atan(bossY / bossX)) - (Math.PI / 2)); } //Q3
-	if ((bossX > 0) && (bossY > 0)) {boss.angle = ((Math.atan(bossY / bossX)) + (Math.PI / 2)); } //Q4
-	boss.speed = 1;
-	boss.newPos(); 
-	boss.update();
+	
 	
 	
 	if (myGameArea.mousedown == true) { 
@@ -556,6 +586,7 @@ function updateGameArea() {//where the pain starts
  ammo.x = myGamePiece.x + 10;
  ammo.y = myGamePiece.y;
  
+ 	
  	time.text = time2;
 	ammo.text = ammoCount;
 	myDifficulty.text = kills;
@@ -566,6 +597,7 @@ function updateGameArea() {//where the pain starts
 	myDifficulty.update();
 	myGamePiece.update();
 	crossheir.update();
+	
 	
 		
 		
